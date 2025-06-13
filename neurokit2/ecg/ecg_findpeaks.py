@@ -6,6 +6,7 @@ import scipy.stats
 from warnings import warn
 from bisect import insort
 from collections import deque
+from scipy.ndimage import percentile_filter
 
 from ..signal import (
     signal_findpeaks,
@@ -504,7 +505,7 @@ def _ecg_findpeaks_khamis(
 
         return F
 
-    def sortfilt1(x, n, p):
+    def sortfilt1(x, n, p, use_original_percentile_filter=False):
 
         N = len(x)
 
@@ -522,13 +523,23 @@ def _ecg_findpeaks_khamis(
 
         y = np.zeros_like(x)
 
-        y = np.zeros(N)
-        for i in range(1, N + 1):
-            A = max(1, i - N1)
-            B = min(N, i + N2)
-            P = 1 + round((p / 100) * (B - A))
-            Z = np.sort(x[A - 1:B])
-            y[i - 1] = Z[P - 1]
+        if use_original_percentile_filter:
+            
+            # use percentile filter implementation from original matlab code
+            y = np.zeros(N)
+            for i in range(1, N + 1):
+                A = max(1, i - N1)
+                B = min(N, i + N2)
+                P = 1 + round((p / 100) * (B - A))
+                Z = np.sort(x[A - 1:B])
+                y[i - 1] = Z[P - 1]
+
+        else:
+            # use scipy's percentile filter
+            # Calculate window size from N1 and N2
+            size = N1 + N2 + 1  # total length of the window
+            # Apply the percentile filter
+            y = percentile_filter(x, percentile=p, size=size, mode='nearest')
 
         return y
 
